@@ -1,4 +1,3 @@
-import { Message } from "./../node_modules/@aws-sdk/client-sesv2/dist-types/models/models_0.d";
 import { CatchAsyncError } from "./../middleware/catchAsyncErrors";
 import { Request, Response, NextFunction } from "express";
 import userModel, { IUser } from "../models/user.model";
