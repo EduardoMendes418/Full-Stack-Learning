@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { AppError } from "./errors/AppError";
 import ErrorMiddleware from '../middleware/error';
+import userRouter from '../routes/user.route'
 
 export const app = express();
 
@@ -17,6 +18,8 @@ app.use(
     credentials: true,
   })
 );
+
+app.use("/api/v1", userRouter)
 
 app.get("/teste", (req: Request, res: Response, next: NextFunction) => {
   try {
