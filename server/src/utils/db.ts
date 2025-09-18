@@ -11,9 +11,9 @@ const connectDB = async (): Promise<void> => {
 
   try {
     await mongoose.connect(dbUrl);
-    console.log("MongoDB connected successfully!");
+    console.log("✅ MongoDB connected successfully!");
   } catch (error: any) {
-    console.error("Error connecting to MongoDB:", error);
+    console.error("❌ Error connecting to MongoDB:", error);
     console.log("Retrying in 5 seconds...");
     setTimeout(connectDB, 5000); 
   }

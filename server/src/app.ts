@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { AppError } from "./errors/AppError";
+import ErrorMiddleware from '../middleware/error';
 
 export const app = express();
 
@@ -40,3 +41,5 @@ app.use((err: AppError, req: Request, res: Response, next: NextFunction) => {
     message: err.message,
   });
 });
+
+app.use(ErrorMiddleware);
