@@ -6,6 +6,7 @@ import jwt, { Secret } from "jsonwebtoken";
 import ejs from "ejs";
 import path from "path";
 import sendMail from "../src/utils/sendMail";
+import { sendToken } from "../src/utils/jwt";
 
 interface IRegistrationBody {
   name: string;
@@ -25,6 +26,11 @@ interface IActivationToken {
 interface IActivationRequest {
   activation_token: string;
   activation_code: string;
+}
+
+interface ILoginRequest {
+  email: string;
+  password: string;
 }
 
 //GERACAO DE TOKEN
@@ -123,6 +129,36 @@ export const activateUser = CatchAsyncError(
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message || "Algo deu errado", 400));
+    }
+  }
+);
+
+//LOGIN
+export const loginUser = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, password } = req.body as ILoginRequest;
+
+      if (!email || !password) {
+        return next(
+          new ErrorHandler("Por favor, informe o e-mail e a senha", 400)
+        );
+      }
+
+      const user = await userModel.findOne({ email }).select("+password");
+      if (!user) {
+        return next(new ErrorHandler("E-mail ou senha inválidos", 400));
+      }
+
+      const isPasswordMatch = await user.comparePassword(password);
+      if (!isPasswordMatch) {
+        return next(new ErrorHandler("Senha incorreta", 400));
+      }
+
+      sendToken(user, 200, res);
+
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
     }
   }
 );

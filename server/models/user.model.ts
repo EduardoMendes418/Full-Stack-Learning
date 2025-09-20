@@ -1,9 +1,12 @@
-import mongoose, { Document, Model, Schema } from "mongoose";
+require("dotenv").config();
+import jwt from "jsonwebtoken";
+import mongoose, { Document, Model, Schema, Types } from "mongoose";
 import bcrypt from "bcryptjs";
 
 const emailRegexPattern: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface IUser extends Document {
+  _id: Types.ObjectId;
   name: string;
   email: string;
   password: string;
@@ -15,6 +18,8 @@ export interface IUser extends Document {
   isVerified: boolean;
   courses: Array<{ courseId: string }>;
   comparePassword: (password: string) => Promise<Boolean>;
+  SignAccessToken: () => string;
+  SignRefreshToken: () => string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema(
@@ -75,6 +80,28 @@ userSchema.pre("save", async function (next) {
 
   next();
 });
+
+userSchema.methods.SignAccessToken = function (): string {
+  if (!process.env.ACCESS_TOKEN) {
+    throw new Error("ACCESS_TOKEN não está definido nas variáveis de ambiente");
+  }
+
+  return jwt.sign({ id: this._id }, process.env.ACCESS_TOKEN, {
+    expiresIn: "1h",
+  });
+};
+
+userSchema.methods.SignRefreshToken = function (): string {
+  if (!process.env.REFRESH_TOKEN) {
+    throw new Error(
+      "REFRESH_TOKEN não está definido nas variáveis de ambiente"
+    );
+  }
+
+  return jwt.sign({ id: this._id }, process.env.REFRESH_TOKEN, {
+    expiresIn: "7d",
+  });
+};
 
 userSchema.methods.comparePassword = async function (
   enteredPassword: string
