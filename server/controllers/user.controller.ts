@@ -7,31 +7,13 @@ import ejs from "ejs";
 import path from "path";
 import sendMail from "../src/utils/sendMail";
 import { sendToken } from "../src/utils/jwt";
-
-interface IRegistrationBody {
-  name: string;
-  email: string;
-  password: string;
-  avatar?: {
-    public_id: string;
-    url: string;
-  };
-}
-
-interface IActivationToken {
-  token: string;
-  activationCode: string;
-}
-
-interface IActivationRequest {
-  activation_token: string;
-  activation_code: string;
-}
-
-interface ILoginRequest {
-  email: string;
-  password: string;
-}
+import redisClient from "../src/utils/redis";
+import {
+  IRegistrationBody,
+  IActivationRequest,
+  ILoginRequest,
+  IActivationToken,
+} from "../types/auth.d";
 
 //GERACAO DE TOKEN
 export const createActivationToken = (
@@ -167,22 +149,23 @@ export const logoutUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       res.clearCookie("access_token", {
-        httpOnly: true,
-        sameSite: "strict",
-        secure: process.env.NODE_ENV === "production",
+        maxAge: 1,
       });
 
       res.clearCookie("refresh_token", {
-        httpOnly: true,
-        sameSite: "strict",
-        secure: process.env.NODE_ENV === "production",
+        maxAge: 1,
       });
-      
+
+      const userId = req.user?._id?.toString();
+      if (userId) {
+        const redis = redisClient();
+        await redis.del(userId);
+      }
+
       return res.status(200).json({
         success: true,
         message: "Logout realizado com sucesso",
       });
-
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
