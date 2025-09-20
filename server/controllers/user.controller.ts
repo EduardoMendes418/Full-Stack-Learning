@@ -156,6 +156,32 @@ export const loginUser = CatchAsyncError(
       }
 
       sendToken(user, 200, res);
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+//LOGOUT USER
+export const logoutUser = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.clearCookie("access_token", {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: process.env.NODE_ENV === "production",
+      });
+
+      res.clearCookie("refresh_token", {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: process.env.NODE_ENV === "production",
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: "Logout realizado com sucesso",
+      });
 
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
