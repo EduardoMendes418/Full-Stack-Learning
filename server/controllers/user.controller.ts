@@ -13,7 +13,7 @@ import {
   IActivationRequest,
   ILoginRequest,
   IActivationToken,
-} from "../types/auth.d";
+} from "../@types/auth.d";
 
 //GERACAO DE TOKEN
 export const createActivationToken = (
