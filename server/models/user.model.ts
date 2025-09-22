@@ -87,7 +87,7 @@ userSchema.methods.SignAccessToken = function (): string {
   }
 
   return jwt.sign({ id: this._id }, process.env.ACCESS_TOKEN, {
-    expiresIn: "1h",
+    expiresIn: "5m",
   });
 };
 
@@ -99,7 +99,7 @@ userSchema.methods.SignRefreshToken = function (): string {
   }
 
   return jwt.sign({ id: this._id }, process.env.REFRESH_TOKEN, {
-    expiresIn: "7d",
+    expiresIn: "3d",
   });
 };
 
