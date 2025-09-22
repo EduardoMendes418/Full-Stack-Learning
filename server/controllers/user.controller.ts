@@ -2,18 +2,20 @@ import { CatchAsyncError } from "./../middleware/catchAsyncErrors";
 import { Request, Response, NextFunction } from "express";
 import userModel from "../models/user.model";
 import ErrorHandler from "../src/utils/errorHandler";
-import jwt, { Secret } from "jsonwebtoken";
+import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import ejs from "ejs";
 import path from "path";
 import sendMail from "../src/utils/sendMail";
-import { sendToken } from "../src/utils/jwt";
+import {
+  sendToken
+} from "../src/utils/jwt";
 import redisClient from "../src/utils/redis";
 import {
   IRegistrationBody,
   IActivationRequest,
   ILoginRequest,
   IActivationToken,
-} from "../types/auth.d";
+} from "../@types/auth.d";
 
 //GERACAO DE TOKEN
 export const createActivationToken = (
@@ -165,6 +167,65 @@ export const logoutUser = CatchAsyncError(
       return res.status(200).json({
         success: true,
         message: "Logout realizado com sucesso",
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+//UPDATE ACCESS TOKEN
+export const updateAccessToken = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const refresh_token = req.cookies.refresh_token as string;
+      const decoded = jwt.verify(
+        refresh_token,
+        process.env.REFRESH_TOKEN as string
+      ) as JwtPayload;
+
+      const message = "Não foi possível atualizar o token";
+      if (!decoded) {
+        return next(new ErrorHandler(message, 400));
+      }
+
+      const client = redisClient();
+      const session = await client.get(decoded.id as string);
+
+      if (!session) {
+        return next(new ErrorHandler(message, 400));
+      }
+
+      const accessToken = jwt.sign(
+        { id: decoded.id },
+        process.env.ACCESS_TOKEN as string,
+        { expiresIn: "5m" }
+      );
+
+      const refreshToken = jwt.sign(
+        { id: decoded.id },
+        process.env.REFRESH_TOKEN as string,
+        { expiresIn: "3d" }
+      );
+
+      const accessTokenOptions = {
+        expires: new Date(Date.now() + 5 * 60 * 1000),
+        httpOnly: true,
+        sameSite: "lax" as const,
+      };
+
+      const refreshTokenOptions = {
+        expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        httpOnly: true,
+        sameSite: "lax" as const,
+      };
+
+      res.cookie("access_token", accessToken, accessTokenOptions);
+      res.cookie("refresh_token", refreshToken, refreshTokenOptions);
+
+      return res.status(200).json({
+        success: true,
+        accessToken,
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
