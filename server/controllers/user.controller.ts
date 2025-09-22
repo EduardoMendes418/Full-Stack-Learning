@@ -14,6 +14,7 @@ import {
   IActivationRequest,
   ILoginRequest,
   IActivationToken,
+  ISocialAuthBody,
 } from "../@types/auth.d";
 
 //GERACAO DE TOKEN
@@ -240,12 +241,43 @@ export const getUserInfo = (
 ) => {
   try {
     const userId = req.user?._id;
-
     if (!userId) {
       return next(new ErrorHandler("ID do usuário não encontrado", 400));
     }
     getUserById(userId.toString(), res);
   } catch (error: any) {
-    return next(new ErrorHandler(error.message, 500));
+    return next(new ErrorHandler(error.message, 400));
+  }
+};
+
+// SOCIAL AUTH
+export const socialAuth = async (
+  req: Request<{}, {}, ISocialAuthBody>,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email, name, avatar } = req.body;
+
+    if (!email || !name) {
+      return next(new ErrorHandler("Email e nome são obrigatórios", 400));
+    }
+
+    let user = await userModel.findOne({ email });
+
+    if (!user) {
+      user = await userModel.create({
+        email,
+        name,
+        avatar: {
+          public_id: "social_" + Date.now(),
+          url: avatar || "https://cdn.suaapp.com/default-avatar.png", 
+        },
+      });
+    }
+
+    sendToken(user, 200, res);
+  } catch (error: any) {
+    return next(new ErrorHandler(error.message, 400));
   }
 };
