@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import ErrorHandler from "../src/utils/errorHandler";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import redisClient from "../src/utils/redis";
+import userModel from "../models/user.model";
 
 //AUTHENTICATED 
 export const isAuthenticated = CatchAsyncError(
@@ -34,10 +35,12 @@ export const isAuthenticated = CatchAsyncError(
       return next(new ErrorHandler("Access token inválido", 401));
     }
 
-    const user = await redis.get(decoded.id);
+      const user = await userModel.findById(decoded.id).select("-password");
     if (!user) {
       return next(new ErrorHandler("Usuário não encontrado", 404));
     }
+
+    req.user = user; 
 
     next();
   }
