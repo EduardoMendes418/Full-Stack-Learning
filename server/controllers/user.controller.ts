@@ -1,3 +1,4 @@
+import { getUserById } from "./../services/user.services";
 import { CatchAsyncError } from "./../middleware/catchAsyncErrors";
 import { Request, Response, NextFunction } from "express";
 import userModel from "../models/user.model";
@@ -6,15 +7,14 @@ import jwt, { JwtPayload, Secret } from "jsonwebtoken";
 import ejs from "ejs";
 import path from "path";
 import sendMail from "../src/utils/sendMail";
-import {
-  sendToken
-} from "../src/utils/jwt";
+import { sendToken } from "../src/utils/jwt";
 import redisClient from "../src/utils/redis";
 import {
   IRegistrationBody,
   IActivationRequest,
   ILoginRequest,
   IActivationToken,
+  ISocialAuthBody,
 } from "../@types/auth.d";
 
 //GERACAO DE TOKEN
@@ -232,3 +232,52 @@ export const updateAccessToken = CatchAsyncError(
     }
   }
 );
+
+// GET USER INFO
+export const getUserInfo = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return next(new ErrorHandler("ID do usuário não encontrado", 400));
+    }
+    getUserById(userId.toString(), res);
+  } catch (error: any) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+};
+
+// SOCIAL AUTH
+export const socialAuth = async (
+  req: Request<{}, {}, ISocialAuthBody>,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email, name, avatar } = req.body;
+
+    if (!email || !name) {
+      return next(new ErrorHandler("Email e nome são obrigatórios", 400));
+    }
+
+    let user = await userModel.findOne({ email });
+
+    if (!user) {
+      user = await userModel.create({
+        email,
+        name,
+        avatar: {
+          public_id: "social_" + Date.now(),
+          url: avatar || "https://cdn.suaapp.com/default-avatar.png", 
+        },
+      });
+    }
+
+    sendToken(user, 200, res);
+  } catch (error: any) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+};

@@ -25,6 +25,12 @@ export interface ILoginRequest {
   password: string;
 }
 
+export interface ISocialAuthBody {
+  email: string;
+  name: string;
+  avatar?: string; 
+}
+
 declare global {
   namespace Express {
     interface Request {
