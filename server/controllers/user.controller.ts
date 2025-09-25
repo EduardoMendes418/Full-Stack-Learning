@@ -15,6 +15,7 @@ import {
   ILoginRequest,
   IActivationToken,
   ISocialAuthBody,
+  IUpdateUserInfo,
 } from "../@types/auth.d";
 
 //GERACAO DE TOKEN
@@ -271,12 +272,46 @@ export const socialAuth = async (
         name,
         avatar: {
           public_id: "social_" + Date.now(),
-          url: avatar || "https://cdn.suaapp.com/default-avatar.png", 
+          url: avatar || "https://cdn.suaapp.com/default-avatar.png",
         },
       });
     }
 
     sendToken(user, 200, res);
+  } catch (error: any) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+};
+
+//UPDATE USER INFO
+export const updateUserInfo = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { name, email } = req.body as IUpdateUserInfo;
+    const userId = req.user?._id;
+    const user = await userModel.findById(userId);
+
+    if (email && user) {
+      const emailExistente = await userModel.findOne({ email });
+      if (emailExistente) {
+        return next(new ErrorHandler("O email já está em uso", 400));
+      }
+      user.email = email;
+    }
+
+    if (name && user) {
+      user.name = name;
+    }
+
+    await user?.save();
+
+    return res.status(201).json({
+      sucesso: true,
+      user,
+    });
   } catch (error: any) {
     return next(new ErrorHandler(error.message, 400));
   }
