@@ -9,6 +9,7 @@ import path from "path";
 import sendMail from "../src/utils/sendMail";
 import { sendToken } from "../src/utils/jwt";
 import redisClient from "../src/utils/redis";
+import bcrypt from "bcryptjs";
 import {
   IRegistrationBody,
   IActivationRequest,
@@ -221,6 +222,8 @@ export const updateAccessToken = CatchAsyncError(
         sameSite: "lax" as const,
       };
 
+      req.user;
+
       res.cookie("access_token", accessToken, accessTokenOptions);
       res.cookie("refresh_token", refreshToken, refreshTokenOptions);
 
@@ -284,35 +287,92 @@ export const socialAuth = async (
 };
 
 //UPDATE USER INFO
-export const updateUserInfo = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { name, email } = req.body as IUpdateUserInfo;
-    const userId = req.user?._id;
-    const user = await userModel.findById(userId);
-
-    if (email && user) {
-      const emailExistente = await userModel.findOne({ email });
-      if (emailExistente) {
-        return next(new ErrorHandler("O email já está em uso", 400));
+export const updateUserInfo = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user || !req.user._id) {
+        return next(new ErrorHandler("Usuário não autenticado", 401));
       }
-      user.email = email;
+
+      const { name, email } = req.body as IUpdateUserInfo;
+      const userId = req.user._id.toString();
+
+      const user = await userModel.findById(userId);
+      if (!user) {
+        return next(new ErrorHandler("Usuário não encontrado", 404));
+      }
+
+      const redis = redisClient();
+
+      if (email) {
+        const emailExistente = await userModel.findOne({ email });
+        if (emailExistente && emailExistente._id.toString() !== userId) {
+          return next(new ErrorHandler("O email já está em uso", 400));
+        }
+        user.email = email;
+      }
+
+      if (name) {
+        user.name = name;
+      }
+
+      await user.save();
+      await redis.set(userId, JSON.stringify(user));
+
+      return res.status(200).json({
+        success: true,
+        user,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
     }
-
-    if (name && user) {
-      user.name = name;
-    }
-
-    await user?.save();
-
-    return res.status(201).json({
-      sucesso: true,
-      user,
-    });
-  } catch (error: any) {
-    return next(new ErrorHandler(error.message, 400));
   }
-};
+);
+
+//UPDATE PASSWORD
+interface IUpdatePassword {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export const updatePassword = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user || !req.user._id) {
+        return next(new ErrorHandler("Usuário não autenticado", 401));
+      }
+
+      const { oldPassword, newPassword } = req.body as IUpdatePassword;
+      const userId = req.user._id.toString();
+
+      const user = await userModel.findById(userId).select("+password");
+      if (!user) {
+        return next(new ErrorHandler("Usuário não encontrado", 404));
+      }
+
+      if (!user.password) {
+        return next(new ErrorHandler("Senha do usuário não encontrada", 500));
+      }
+
+      const isPasswordMatch = await user.comparePassword(oldPassword);
+      if (!isPasswordMatch) {
+        return next(new ErrorHandler("Senha antiga incorreta", 400));
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+      await user.save();
+
+      const { password, ...userToCache } = user.toObject();
+      const redis = redisClient();
+      await redis.set(userId, JSON.stringify(userToCache));
+
+      return res.status(200).json({
+        success: true,
+        message: "Senha atualizada com sucesso",
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
