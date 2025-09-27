@@ -36,6 +36,15 @@ export interface IUpdateUserInfo {
   email?: string;
 }
 
+export interface IUpdatePassword {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export interface IUpdateProfilePicture {
+  avatar: string;
+}
+
 declare global {
   namespace Express {
     interface Request {

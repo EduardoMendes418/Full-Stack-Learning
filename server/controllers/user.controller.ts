@@ -17,7 +17,10 @@ import {
   IActivationToken,
   ISocialAuthBody,
   IUpdateUserInfo,
+  IUpdateProfilePicture,
+  IUpdatePassword,
 } from "../@types/auth.d";
+import cloudinary from "cloudinary";
 
 //GERACAO DE TOKEN
 export const createActivationToken = (
@@ -328,11 +331,6 @@ export const updateUserInfo = CatchAsyncError(
 );
 
 //UPDATE PASSWORD
-interface IUpdatePassword {
-  oldPassword: string;
-  newPassword: string;
-}
-
 export const updatePassword = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -387,6 +385,46 @@ export const updatePassword = CatchAsyncError(
     } catch (error: any) {
       return next(
         new ErrorHandler(error.message || "Erro ao atualizar senha", 400)
+      );
+    }
+  }
+);
+
+//UPDATE PROFILE PICTURE
+export const updateProfilePicture = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { avatar } = req.body as IUpdateProfilePicture;
+      const user = await userModel.findById(req.user?._id);
+
+      if (!user) {
+        return next(new ErrorHandler("Usuário não encontrado", 404));
+      }
+
+      if (user.avatar?.public_id) {
+        await cloudinary.v2.uploader.destroy(user.avatar.public_id);
+      }
+
+      const uploadResult = await cloudinary.v2.uploader.upload(avatar, {
+        folder: "avatars",
+      });
+
+      user.avatar = {
+        public_id: uploadResult.public_id,
+        url: uploadResult.secure_url,
+      };
+
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Foto de perfil atualizada com sucesso",
+        avatar: user.avatar,
+      });
+    } catch (error: any) {
+      console.error("Erro ao atualizar avatar:", error);
+      return next(
+        new ErrorHandler(error.message || "Erro ao atualizar avatar", 400)
       );
     }
   }
