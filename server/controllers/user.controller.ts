@@ -383,9 +383,7 @@ export const updatePassword = CatchAsyncError(
         message: "Senha atualizada com sucesso",
       });
     } catch (error: any) {
-      return next(
-        new ErrorHandler(error.message || "Erro ao atualizar senha", 400)
-      );
+      return next(new ErrorHandler(error.message, 400));
     }
   }
 );
@@ -401,31 +399,29 @@ export const updateProfilePicture = CatchAsyncError(
         return next(new ErrorHandler("Usuário não encontrado", 404));
       }
 
-      if (user.avatar?.public_id) {
+      if (user?.avatar?.public_id) {
         await cloudinary.v2.uploader.destroy(user.avatar.public_id);
       }
 
-      const uploadResult = await cloudinary.v2.uploader.upload(avatar, {
+      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
         folder: "avatars",
+        width: 150,
       });
 
       user.avatar = {
-        public_id: uploadResult.public_id,
-        url: uploadResult.secure_url,
+        public_id: myCloud.public_id,
+        url: myCloud.secure_url,
       };
 
       await user.save();
 
       return res.status(200).json({
         success: true,
-        message: "Foto de perfil atualizada com sucesso",
-        avatar: user.avatar,
+        user,
       });
     } catch (error: any) {
       console.error("Erro ao atualizar avatar:", error);
-      return next(
-        new ErrorHandler(error.message || "Erro ao atualizar avatar", 400)
-      );
+      return next(new ErrorHandler(error.message, 400));
     }
   }
 );
