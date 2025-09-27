@@ -63,7 +63,7 @@ export const registrationUser = CatchAsyncError(
         data,
       });
 
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: `Verifique seu e-mail: ${user.email} para ativar sua conta`,
         activationToken: activationToken.token,
@@ -109,7 +109,7 @@ export const activateUser = CatchAsyncError(
         avatar: avatar || defaultAvatar,
       });
 
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: "Usuário ativado com sucesso",
       });
@@ -221,8 +221,6 @@ export const updateAccessToken = CatchAsyncError(
         httpOnly: true,
         sameSite: "lax" as const,
       };
-
-      req.user;
 
       res.cookie("access_token", accessToken, accessTokenOptions);
       res.cookie("refresh_token", refreshToken, refreshTokenOptions);
@@ -343,6 +341,16 @@ export const updatePassword = CatchAsyncError(
       }
 
       const { oldPassword, newPassword } = req.body as IUpdatePassword;
+
+      if (!oldPassword || !newPassword) {
+        return next(new ErrorHandler("Preencha todas as senhas", 400));
+      }
+      if (newPassword.length < 6) {
+        return next(
+          new ErrorHandler("Nova senha deve ter ao menos 6 caracteres", 400)
+        );
+      }
+
       const userId = req.user._id.toString();
 
       const user = await userModel.findById(userId).select("+password");
@@ -361,18 +369,25 @@ export const updatePassword = CatchAsyncError(
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
+
       await user.save();
 
       const { password, ...userToCache } = user.toObject();
-      const redis = redisClient();
-      await redis.set(userId, JSON.stringify(userToCache));
+      try {
+        const redis = redisClient();
+        await redis.set(userId, JSON.stringify(userToCache), "EX", 3600);
+      } catch (redisError) {
+        console.error("Erro ao atualizar cache Redis:", redisError);
+      }
 
       return res.status(200).json({
         success: true,
         message: "Senha atualizada com sucesso",
       });
     } catch (error: any) {
-      return next(new ErrorHandler(error.message, 400));
+      return next(
+        new ErrorHandler(error.message || "Erro ao atualizar senha", 400)
+      );
     }
   }
 );
