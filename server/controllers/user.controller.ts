@@ -17,7 +17,10 @@ import {
   IActivationToken,
   ISocialAuthBody,
   IUpdateUserInfo,
+  IUpdateProfilePicture,
+  IUpdatePassword,
 } from "../@types/auth.d";
+import cloudinary from "cloudinary";
 
 //GERACAO DE TOKEN
 export const createActivationToken = (
@@ -63,7 +66,7 @@ export const registrationUser = CatchAsyncError(
         data,
       });
 
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: `Verifique seu e-mail: ${user.email} para ativar sua conta`,
         activationToken: activationToken.token,
@@ -109,7 +112,7 @@ export const activateUser = CatchAsyncError(
         avatar: avatar || defaultAvatar,
       });
 
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: "Usuário ativado com sucesso",
       });
@@ -222,8 +225,6 @@ export const updateAccessToken = CatchAsyncError(
         sameSite: "lax" as const,
       };
 
-      req.user;
-
       res.cookie("access_token", accessToken, accessTokenOptions);
       res.cookie("refresh_token", refreshToken, refreshTokenOptions);
 
@@ -330,11 +331,6 @@ export const updateUserInfo = CatchAsyncError(
 );
 
 //UPDATE PASSWORD
-interface IUpdatePassword {
-  oldPassword: string;
-  newPassword: string;
-}
-
 export const updatePassword = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -343,6 +339,16 @@ export const updatePassword = CatchAsyncError(
       }
 
       const { oldPassword, newPassword } = req.body as IUpdatePassword;
+
+      if (!oldPassword || !newPassword) {
+        return next(new ErrorHandler("Preencha todas as senhas", 400));
+      }
+      if (newPassword.length < 6) {
+        return next(
+          new ErrorHandler("Nova senha deve ter ao menos 6 caracteres", 400)
+        );
+      }
+
       const userId = req.user._id.toString();
 
       const user = await userModel.findById(userId).select("+password");
@@ -361,17 +367,60 @@ export const updatePassword = CatchAsyncError(
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
+
       await user.save();
 
       const { password, ...userToCache } = user.toObject();
-      const redis = redisClient();
-      await redis.set(userId, JSON.stringify(userToCache));
+      try {
+        const redis = redisClient();
+        await redis.set(userId, JSON.stringify(userToCache), "EX", 3600);
+      } catch (redisError) {
+        console.error("Erro ao atualizar cache Redis:", redisError);
+      }
 
       return res.status(200).json({
         success: true,
         message: "Senha atualizada com sucesso",
       });
     } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+//UPDATE PROFILE PICTURE
+export const updateProfilePicture = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { avatar } = req.body as IUpdateProfilePicture;
+      const user = await userModel.findById(req.user?._id);
+
+      if (!user) {
+        return next(new ErrorHandler("Usuário não encontrado", 404));
+      }
+
+      if (user?.avatar?.public_id) {
+        await cloudinary.v2.uploader.destroy(user.avatar.public_id);
+      }
+
+      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
+        folder: "avatars",
+        width: 150,
+      });
+
+      user.avatar = {
+        public_id: myCloud.public_id,
+        url: myCloud.secure_url,
+      };
+
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        user,
+      });
+    } catch (error: any) {
+      console.error("Erro ao atualizar avatar:", error);
       return next(new ErrorHandler(error.message, 400));
     }
   }

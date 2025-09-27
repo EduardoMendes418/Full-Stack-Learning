@@ -9,6 +9,7 @@ import {
   socialAuth,
   updateAccessToken,
   updatePassword,
+  updateProfilePicture,
   updateUserInfo,
 } from "../controllers/user.controller";
 const userRouter = express.Router();
@@ -20,6 +21,7 @@ userRouter.post("/login", loginUser);
 userRouter.post("/social-auth", socialAuth);
 userRouter.put("/update-user-info", isAuthenticated, updateUserInfo);
 userRouter.put("/update-user-password", isAuthenticated, updatePassword);
+userRouter.put("/update-user-avatar", isAuthenticated, updateProfilePicture);
 
 // Rotas protegidas
 userRouter.get("/logout", isAuthenticated, logoutUser);
