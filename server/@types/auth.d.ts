@@ -10,16 +10,6 @@ export interface IRegistrationBody {
   };
 }
 
-export interface IActivationToken {
-  token: string;
-  activationCode: string;
-}
-
-export interface IActivationRequest {
-  activation_token: string;
-  activation_code: string;
-}
-
 export interface ILoginRequest {
   email: string;
   password: string;
@@ -28,21 +18,7 @@ export interface ILoginRequest {
 export interface ISocialAuthBody {
   email: string;
   name: string;
-  avatar?: string; 
-}
-
-export interface IUpdateUserInfo {
-  name?: string;
-  email?: string;
-}
-
-export interface IUpdatePassword {
-  oldPassword: string;
-  newPassword: string;
-}
-
-export interface IUpdateProfilePicture {
-  avatar: string;
+  avatar?: string;
 }
 
 declare global {
