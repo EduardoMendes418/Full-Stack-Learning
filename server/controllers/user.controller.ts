@@ -10,17 +10,21 @@ import sendMail from "../src/utils/sendMail";
 import { sendToken } from "../src/utils/jwt";
 import redisClient from "../src/utils/redis";
 import bcrypt from "bcryptjs";
+import cloudinary from "cloudinary";
 import {
   IRegistrationBody,
-  IActivationRequest,
   ILoginRequest,
-  IActivationToken,
   ISocialAuthBody,
-  IUpdateUserInfo,
-  IUpdateProfilePicture,
-  IUpdatePassword,
 } from "../@types/auth.d";
-import cloudinary from "cloudinary";
+import {
+  IActivationRequest,
+  IActivationToken,
+} from "../@types/auth.activation";
+import {
+  IUpdatePassword,
+  IUpdateProfilePicture,
+  IUpdateUserInfo,
+} from "../@types/auth.update";
 
 //GERACAO DE TOKEN
 export const createActivationToken = (
