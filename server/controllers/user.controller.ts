@@ -15,16 +15,16 @@ import {
   IRegistrationBody,
   ILoginRequest,
   ISocialAuthBody,
-} from "../@types/auth.d";
+} from "../@types/user/auth.d";
 import {
   IActivationRequest,
   IActivationToken,
-} from "../@types/auth.activation";
+} from "../@types/user/auth.activation";
 import {
   IUpdatePassword,
   IUpdateProfilePicture,
   IUpdateUserInfo,
-} from "../@types/auth.update";
+} from "../@types/user/auth.update";
 
 //GERACAO DE TOKEN
 export const createActivationToken = (
